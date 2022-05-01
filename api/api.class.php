@@ -55,7 +55,7 @@ class Api {
 	}
 
   private function getLastOdo($iduser) {
-    $query = $this->mysqli->prepare("SELECT `odoKm` FROM `data` WHERE `user` = ? AND `odoKm` > 0 ORDER BY `timestamp` DESC LIMIT 1");
+    $query = $this->mysqli->prepare("SELECT `odoKm` FROM `data` WHERE `user` = ? AND `odoKm` > 0 AND `odoKm` < 16000000 ORDER BY `timestamp` DESC LIMIT 1");
     $query->bind_param('i', $iduser);
 
     if($query->execute()) {
@@ -75,7 +75,7 @@ class Api {
       return false;
     }
 
-    if($json->odoKm <= 0) {
+    if($json->odoKm <= 0 or $json->odoKm > 16000000 ) {
       if($lastOdoKm = $this->getLastOdo($iduser)) {
         $json->odoKm = $lastOdoKm;
       }
@@ -148,6 +148,14 @@ class Api {
       case 8:
         $abrp_json->car_model = "kia:soul:19:64:other";
         $abrp_json->capacity = 64;
+        break;
+      case 11:
+        $abrp_json->car_model = "volkswagen:id4:21:77";
+        $abrp_json->capacity = 77;
+        break;
+      case 27:
+        $abrp_json->car_model = "audi:q4:21:77:meb:50q";
+        $abrp_json->capacity = 77;
         break;
       default:
         return false;
