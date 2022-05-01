@@ -138,7 +138,7 @@ class Gui {
       $return[$i]->carType = $obj->carType;
       $return[$i]->gps_lat = $obj->gpsLat;
       $return[$i]->gps_lon = $obj->gpsLon;
-      $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=AIzaSyDHuAj-cpfU7PvOY0y0pf3DonXBt9XCDz4";
+      $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=XXXXX";
       error_log($url);
       $resp_json = file_get_contents($url);
       $resp = json_decode($resp_json, true);
@@ -190,7 +190,7 @@ class Gui {
           $return[$i]->min_perc = (int) $last_obj->socPerc ;
           $return[$i]->max_perc = (int) $obj->socPerc;
           $return[$i]->gps_lat = $last_obj->gpsLat;
-          $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=AIzaSyDHuAj-cpfU7PvOY0y0pf3DonXBt9XCDz4";
+          $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=XXXXX";
           error_log($url);
           $resp_json = file_get_contents($url);
           $resp = json_decode($resp_json, true);
