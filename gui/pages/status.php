@@ -2,6 +2,9 @@
 	$dta = $gui->getLastRecord($_SESSION['uid']);
 	$settings = $gui->getSettings($_SESSION['uid']);
 
+	$usage = $gui->getUsage($_SESSION['uid']);
+	$last_usage = $gui->getLastUsage($_SESSION['uid']);
+
 	if(empty($settings->timezone)) {
 		$settings->timezone = 'UTC';
 	}
@@ -14,7 +17,9 @@
 		2 => 'Hyundai Ioniq 2018 28kWh',
 		3 => 'Kia eNiro 2020 39kWh',
 		4 => 'Hyundai Kona 2020 39kWh',
-		5 => 'Renault Zoe 22kWh'
+    5 => 'Renault Zoe 22kWh',
+    11 => 'VW ID.4 77kWh',
+    27 => 'Audi Q4 50 77kWh'
 	);
 ?>
 <div class="col-md-4 order-md-2 mb-4" style="margin: auto" id="ev_status">
@@ -74,6 +79,34 @@
 		</li>
 		<li class="list-group-item d-flex justify-content-between lh-condensed">
 			<div style="text-align: left">
+				<h6 class="my-0">Total usage</h6>
+			</div>
+			<span class="text-muted"><?= $usage['km']; ?>km<br><?= $usage['wkm']; ?>Wh/km</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Total kW</h6>
+				<small class="text-muted">charged / discharged / recuperated / tempC</small>
+			</div>
+			<span class="text-muted"><?= round($usage['charged']); ?> / <?= round($usage['discharged']); ?> / <?= round($usage['recuperated']); ?> kWh<br> <?= round($usage['tempC'],1); ?> &deg;C</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Last usage</h6>
+			</div>
+			<span class="text-muted"><?= $last_usage['km']; ?>km <br> <?= $last_usage['wkm']; ?>Wh/km</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Last kW</h6>
+				<small class="text-muted">discharged / recuperated / tempC</small>
+			</div>
+			<span class="text-muted"><?= round($last_usage['discharged']); ?> / <?= round($last_usage['recuperated']); ?> kWh<br> <?= round($last_usage['tempC'],1); ?> &deg;C</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
 				<h6 class="my-0">Battery Temperature</h6>
 				<small class="text-muted">MIN / MAX / Inlet / Ext</small>
 			</div>
@@ -90,6 +123,27 @@
 				<h6 class="my-0">Aux. Batt. Voltage</h6>
 			</div>
 			<span class="text-muted"><?= round($dta->auxVoltage, 1); ?> V</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Odo km</h6>
+			</div>
+			<span class="text-muted"><?= round($dta->odoKm, 1); ?> km</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Speed</h6>
+			</div>
+			<span class="text-muted"><?= round($dta->speedKmh, 1); ?> km/h</span>
+		</li>
+		<li class="list-group-item d-flex justify-content-between lh-condensed">
+			<div style="text-align: left">
+				<h6 class="my-0">Location</h6>
+			</div>
+			<span class="text-muted">
+        <a href="https://www.google.ch/maps/search/<?= $dta->gpsLat; ?>,<?= $dta->gpsLon; ?>" target="_blank">
+          <?= $dta->gpsLat; ?>,<?= $dta->gpsLon ?> <?=$dta->gpsAlt; ?>
+        </a></span>
 		</li>
 	</ul>
 </div>

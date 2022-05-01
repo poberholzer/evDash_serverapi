@@ -1,5 +1,5 @@
 <?php
-	$dta = $gui->getChargingList($_SESSION['uid']);
+	$dta = $gui->getChargingListByOdoKm($_SESSION['uid']);
 	$settings = $gui->getSettings($_SESSION['uid']);
 
 	if(empty($settings->timezone)) {
@@ -14,7 +14,9 @@
 		2 => 'Hyundai Ioniq 2018 28kWh',
 		3 => 'Kia eNiro 2020 39kWh',
 		4 => 'Hyundai Kona 2020 39kWh',
-		5 => 'Renault Zoe 22kWh'
+		5 => 'Renault Zoe 22kWh',
+		11 => 'VW ID.4 77kWh',
+		27 => 'Audi Q4 50 77kWh'
 	);
 
 	$sumkWh = 0;
@@ -32,6 +34,7 @@
     <thead>
       <tr>
         <th>Time</th>
+        <th>ODO</th>
         <th>Charged</th>
         <th>Percent</th>
         <th>AC/DC</th>
@@ -46,10 +49,11 @@
 							<?= date('Y-m-d H:i:s',strtotime($item->timestamp.' UTC')) ?>
 						</a>
 					</td>
+          <td><?= $item->odoKm ?></td>
           <td><?= round($item->kwh, 2); ?> kWh</td>
 					<?php $sumkWh += $item->kwh; ?>
           <td><?= $item->min_perc ?>% &gt; <?= $item->max_perc ?>%</td>
-					<td>
+          <td>
 						<?php if($item->is_dc): ?>
 							DC
 						<?php else: ?>
@@ -58,9 +62,15 @@
 					</td>
 					<td>
 						<?php if($item->gps_lat && $item->gps_lon): ?>
+              <?php if($item->address): ?>
+							<a href="http://www.google.com/maps/place/<?= $item->gps_lat ?>,<?= $item->gps_lon ?>" target="_blank">
+								<?= $item->address ?>
+							</a>
+						<?php else: ?>
 							<a href="http://www.google.com/maps/place/<?= $item->gps_lat ?>,<?= $item->gps_lon ?>" target="_blank">
 								<?= $item->gps_lat ?>, <?= $item->gps_lon ?>
 							</a>
+						<?php endif; ?>
 						<?php else: ?>
 							/
 						<?php endif; ?>
@@ -69,6 +79,7 @@
       <?php endforeach; ?>
 			<tr>
 				<th>Sum</th>
+				<td>&nbsp;</td>
 				<td><?= round($sumkWh, 2); ?> kWh</td>
 				<td>&nbsp;</td>
 				<td>&nbsp;</td>

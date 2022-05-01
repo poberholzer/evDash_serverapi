@@ -33,7 +33,7 @@ class Gui {
 	}
 
 	public function getLastRecord($uid) {
-		$query = $this->mysqli->prepare("SELECT `timestamp`, `carType`, `ignitionOn`, `chargingOn`, `socPerc`, `socPercBms`, `sohPerc`, `batPowerKw`, `batPowerAmp`, `batVoltage`, `auxVoltage`, `batMinC`, `batMaxC`, `batInletC`, `extTemp`, `batFanStatus`, `cumulativeEnergyChargedKWh`, `cumulativeEnergyDischargedKWh` FROM `data` WHERE `user` = ? ORDER BY `timestamp` DESC LIMIT 1");
+		$query = $this->mysqli->prepare("SELECT `timestamp`, `carType`, `ignitionOn`, `chargingOn`, `socPerc`, `socPercBms`, `sohPerc`, `batPowerKw`, `batPowerAmp`, `batVoltage`, `auxVoltage`, `batMinC`, `batMaxC`, `batInletC`, `extTemp`, `batFanStatus`, `cumulativeEnergyChargedKWh`, `cumulativeEnergyDischargedKWh`, `odoKm`, `speedKmh`, `gpsLat`, `gpsLon`, `gpsAlt` FROM `data` WHERE `user` = ? ORDER BY `timestamp` DESC LIMIT 1");
 
 		$query->bind_param('i', $uid);
 
@@ -61,6 +61,155 @@ class Gui {
 	      return false;
 	    }
 	}
+
+	public function getChargingSessions($uid) {
+	  $query = $this->mysqli->prepare("select * from (select odoKm, round(max(cumulativeEnergyChargedKWh) - min(cumulativeEnergyChargedKWh),3) as kwh from data where user = ? group by odoKm) as x where kwh>1;");
+		$query->bind_param('s', $uid);
+
+		if(!$query->execute()) {
+			return false;
+		}
+    $result = $query->get_result();
+    $return = array();
+    $i = 0;
+    while ($obj = $result->fetch_object()) {
+      $return[$i]['odoKm'] = $obj->odoKm;
+      $return[$i]['kwh'] = $obj->kwh;
+      $i++;
+    }
+    return $return;
+  }
+
+	public function getUsage($uid, $odoMin = 0) {
+    $charged = $this->getTotalCharged($uid, $odoMin);;
+	  $query = $this->mysqli->prepare("select avg(extTemp) as extTemp, max(odoKm) - min(odoKm) as km, round(max(cumulativeEnergyChargedKWh) - min(cumulativeEnergyChargedKWh),3) as charged, round(max(cumulativeEnergyDischargedKWh) - min(cumulativeEnergyDischargedKWh),3) as discharged from data where user = ? and odoKm > ?");
+		$query->bind_param('ss', $uid, $odoMin);
+
+		if(!$query->execute()) {
+			return false;
+		}
+
+    $result = $query->get_result();
+    $return = array();
+    $obj = $result->fetch_object();
+    $return['charged'] = $charged;
+    $return['recuperated'] = $obj->charged - $charged;
+    $return['discharged'] = $obj->discharged;
+    $return['km'] = $obj->km;
+    $return['tempC'] = $obj->extTemp;
+    $return['wkm'] = round(1000 * ($return['discharged'] - $return['recuperated']) / $return['km']);
+    return $return;
+  }
+
+  public function getLastUsage($uid) {
+    $odoKm = 0;
+    foreach ($this->getChargingSessions($uid) as $obj) {
+      $odoKm= $obj['odoKm'];
+    }
+    return $this->getUsage($uid, $odoKm);
+  }
+
+  public function getTotalCharged($uid, $odoMin) {
+    $charged = 0;
+    foreach ($this->getChargingSessions($uid) as $obj) {
+      if ($odoMin < $obj['odoKm']) {
+        $charged += $obj['kwh'];
+      }
+    }
+    return $charged;
+  }
+
+	public function getChargingListByOdoKm($uid) {
+	  $query = $this->mysqli->prepare("select * from (select odoKm, carType, min(socPerc) as min_perc, max(socPerc) as max_perc, round(max(cumulativeEnergyChargedKWh) - min(cumulativeEnergyChargedKWh),3) as kwh, gpsLat, gpsLon, min(timestamp) as start, max(timestamp) as end from data where user=? group by odoKm) as x where kwh>1;");
+		$query->bind_param('s', $uid);
+
+		if(!$query->execute()) {
+			return false;
+		}
+    $result = $query->get_result();
+
+    $return = array();
+    $i = 0;
+
+    while ($obj = $result->fetch_object()) {
+      $return[$i]->kwh = $obj->kwh;
+      $return[$i]->min_perc = (int) $obj->min_perc;
+      $return[$i]->max_perc = (int) $obj->max_perc;
+      $return[$i]->carType = $obj->carType;
+      $return[$i]->gps_lat = $obj->gpsLat;
+      $return[$i]->gps_lon = $obj->gpsLon;
+      $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=AIzaSyDHuAj-cpfU7PvOY0y0pf3DonXBt9XCDz4";
+      error_log($url);
+      $resp_json = file_get_contents($url);
+      $resp = json_decode($resp_json, true);
+      $return[$i]->address = $resp['results'][0]['formatted_address'];
+      $return[$i]->carType = $obj->carType;
+      $return[$i]->timestamp = $obj->start;
+      $return[$i]->odoKm = $obj->odoKm;
+      $i++;
+    }
+    return $return;
+  }
+
+	public function getChargingListNew($uid) {
+	  $query = $this->mysqli->prepare("SELECT `odoKm`, `chargingOn`, `batPowerKw`, `cumulativeEnergyChargedKWh`, `timestamp`, `socPerc`, `gpsLat`, `gpsLon` FROM `data` WHERE `user` = ? ORDER BY `timestamp` ASC");
+		$query->bind_param('s', $uid);
+
+		if(!$query->execute()) {
+			return false;
+		}
+    $result = $query->get_result();
+
+    $return = array();
+
+    $last_obj = Null;
+    $i = 0;
+    $last_charging = 0;
+    $last_kwh = 0;
+
+    while ($obj = $result->fetch_object()) {
+        if(!$last_obj) {
+          $last_obj = clone $obj;
+			  }
+        if (!$last_charging) {
+          $last_charging = $obj->chargingOn;
+        }
+        if (!$last_kwh) {
+          $last_kwh = $obj->cumulativeEnergyChargedKWh;
+        }
+        $charging_end = False;
+        if ($obj->chargingOn != $last_charging) {
+          if ($obj->chargingOn == 0) {
+            $charging_end = True;
+          }
+        } else if ($obj->chargingOn == 0 && $obj->cumulativeEnergyChargedKWh - $last_kwh > 1) {
+          $charging_end = True;
+        }
+        if ($charging_end) {
+          $return[$i]->kwh = $obj->cumulativeEnergyChargedKWh - $last_kwh;
+          $return[$i]->min_perc = (int) $last_obj->socPerc ;
+          $return[$i]->max_perc = (int) $obj->socPerc;
+          $return[$i]->gps_lat = $last_obj->gpsLat;
+          $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=" . $obj->gpsLat . "," . $obj->gpsLon .  "&key=AIzaSyDHuAj-cpfU7PvOY0y0pf3DonXBt9XCDz4";
+          error_log($url);
+          $resp_json = file_get_contents($url);
+          $resp = json_decode($resp_json, true);
+          $return[$i]->address = $resp['results'][0]['formatted_address'];
+          $return[$i]->gps_lon = $last_obj->gpsLon;
+          $return[$i]->carType = $obj->carType;
+          $return[$i]->is_dc = False;
+          $return[$i]->timestamp = $last_obj->timestamp;
+          $return[$i]->odoKm = $last_obj->odoKm;
+          $i++;
+        }
+        if ($obj->chargingOn == 0) {
+          $last_obj = $obj;
+          $last_charging = $obj->chargingOn;
+          $last_kwh = $obj->cumulativeEnergyChargedKWh;
+        }
+      }
+    return $return;
+  }
 
 	public function getChargingList($uid, $date_from = null, $date_to = null, $lat = null, $lon = null) {
 		if(!isset($date_from, $date_to)) {
